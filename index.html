@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aristiadi's Note Organizer</title>
+<style>
+  :root{
+    --bg:#ffffff;
+    --text:#1a1a1a;
+    --muted:#6b7280;
+    --border:#e5e7eb;
+    --card:#ffffff;
+    --card-hover:#f9fafb;
+    --accent:#111827;
+    --tag:#eef2f7;
+    --tag-text:#374151;
+    --shadow:0 1px 3px rgba(0,0,0,.06),0 1px 2px rgba(0,0,0,.08);
+    --shadow-lg:0 10px 30px rgba(0,0,0,.12);
+    --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  .app{max-width:1120px;margin:0 auto;padding:24px 20px 100px;}
+
+  /* Header */
+  .header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding-bottom:16px;
+  }
+  .header h1{
+    font-size:24px;
+    font-weight:700;
+    letter-spacing:-.01em;
+    margin:0;
+  }
+  .search-wrap{
+    position:relative;
+    display:flex;
+    align-items:center;
+  }
+  .search-wrap .search-icon{
+    position:absolute;
+    left:12px;
+    width:18px;height:18px;
+    color:var(--muted);
+    pointer-events:none;
+  }
+  #search{
+    width:280px;
+    padding:10px 14px 10px 38px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    font-size:14px;
+    background:#fff;
+    color:var(--text);
+    outline:none;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  #search:focus{border-color:#111827;box-shadow:0 0 0 3px rgba(17,24,39,.08);}
+
+  /* Tag filter row */
+  .tags{
+    display:flex;
+    gap:8px;
+    overflow-x:auto;
+    padding:4px 0 16px;
+    -webkit-overflow-scrolling:touch;
+    scrollbar-width:none;
+  }
+  .tags::-webkit-scrollbar{display:none;}
+  .chip{
+    flex:0 0 auto;
+    padding:7px 14px;
+    border-radius:999px;
+    font-size:13px;
+    font-weight:500;
+    border:1px solid var(--border);
+    background:#fff;
+    color:var(--tag-text);
+    cursor:pointer;
+    transition:background .15s,border-color .15s,color .15s;
+    white-space:nowrap;
+  }
+  .chip:hover{background:var(--card-hover);}
+  .chip.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  /* Sort control */
+  .toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:14px;
+    flex-wrap:wrap;
+  }
+  .count{font-size:13px;color:var(--muted);}
+  select#sort{
+    font-size:13px;
+    padding:7px 10px;
+    border:1px solid var(--border);
+    border-radius:8px;
+    background:#fff;
+    color:var(--text);
+    outline:none;
+    cursor:pointer;
+  }
+
+  /* Cards grid */
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fill,minmax(240px,1fr));
+    gap:16px;
+  }
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:18px;
+    box-shadow:var(--shadow);
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    transition:transform .12s ease, box-shadow .12s ease, background .12s ease;
+    cursor:default;
+    position:relative;
+  }
+  .card:hover{
+    transform:translateY(-2px);
+    box-shadow:var(--shadow-lg);
+    background:var(--card-hover);
+  }
+  .card .title{
+    font-size:16px;
+    font-weight:600;
+    margin:0;
+    color:var(--text);
+    display:flex;
+    align-items:flex-start;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .card .del{
+    flex:0 0 auto;
+    width:26px;height:26px;
+    border:none;background:transparent;color:var(--muted);
+    border-radius:6px;cursor:pointer;line-height:1;
+    display:flex;align-items:center;justify-content:center;
+    opacity:0;transition:opacity .12s,background .12s,color .12s;
+  }
+  .card:hover .del{opacity:1;}
+  .card .del:hover{background:#fee2e2;color:#dc2626;}
+  .card .text{
+    font-size:14px;
+    color:#374151;
+    margin:0;
+    overflow:hidden;
+    display:-webkit-box;
+    -webkit-line-clamp:3;
+    -webkit-box-orient:vertical;
+    word-break:break-word;
+  }
+  .card .meta{
+    margin-top:auto;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+  }
+  .card .tags-row{display:flex;flex-wrap:wrap;gap:6px;}
+  .card .tag{
+    font-size:11px;
+    padding:3px 9px;
+    border-radius:999px;
+    background:var(--tag);
+    color:var(--tag-text);
+    font-weight:500;
+  }
+  .card .dates{font-size:11px;color:var(--muted);}
+  .empty{
+    grid-column:1/-1;
+    text-align:center;
+    color:var(--muted);
+    padding:60px 0;
+    font-size:15px;
+  }
+
+  /* FAB */
+  .fab{
+    position:fixed;
+    right:24px;
+    bottom:24px;
+    width:58px;height:58px;
+    border-radius:50%;
+    background:var(--accent);
+    color:#fff;
+    border:none;
+    box-shadow:0 6px 18px rgba(0,0,0,.25);
+    cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+    transition:transform .15s ease, background .15s ease;
+    z-index:50;
+  }
+  .fab:hover{transform:scale(1.06);background:#000;}
+  .fab svg{width:26px;height:26px;}
+
+  /* Modal */
+  .overlay{
+    position:fixed;inset:0;
+    background:rgba(17,24,39,.45);
+    display:none;
+    align-items:center;justify-content:center;
+    padding:20px;
+    z-index:100;
+  }
+  .overlay.open{display:flex;}
+  .modal{
+    background:#fff;
+    width:100%;max-width:520px;
+    border-radius:16px;
+    box-shadow:var(--shadow-lg);
+    padding:24px;
+    max-height:90vh;
+    overflow:auto;
+    display:flex;flex-direction:column;gap:14px;
+  }
+  .modal h2{font-size:18px;margin:0;font-weight:700;}
+  .field{display:flex;flex-direction:column;gap:6px;}
+  .field label{font-size:12px;color:var(--muted);font-weight:600;letter-spacing:.02em;text-transform:uppercase;}
+  .field input,.field textarea{
+    width:100%;
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px 12px;
+    font-size:14px;
+    font-family:inherit;
+    color:var(--text);
+    outline:none;
+    resize:vertical;
+  }
+  .field input:focus,.field textarea:focus{border-color:#111827;box-shadow:0 0 0 3px rgba(17,24,39,.08);}
+  .field textarea{min-height:110px;}
+  .modal-actions{
+    display:flex;justify-content:flex-end;gap:10px;margin-top:6px;
+  }
+  .btn{
+    padding:10px 18px;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid transparent;
+    transition:background .15s,color .15s,border-color .15s;
+  }
+  .btn-ghost{background:#fff;color:var(--muted);border-color:var(--border);}
+  .btn-ghost:hover{background:var(--card-hover);color:var(--text);}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:#000;}
+
+  /* Responsive: mobile -> search icon */
+  @media (max-width:640px){
+    #search{display:none;}
+    .search-wrap .search-icon{position:static;cursor:pointer;pointer-events:auto;color:var(--muted);}
+    .header h1{font-size:20px;}
+    .app{padding:18px 16px 96px;}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1>Note Organizer</h1>
+    <div class="search-wrap">
+      <input id="search" type="text" placeholder="Search notes..." aria-label="Search notes" autocomplete="off">
+      <svg class="search-icon" id="searchIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="button" aria-label="Open search">
+        <circle cx="11" cy="11" r="7"></circle>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+      </svg>
+    </div>
+  </div>
+
+  <div class="tags" id="tags"></div>
+
+  <div class="toolbar">
+    <span class="count" id="count"></span>
+    <select id="sort" aria-label="Sort notes">
+      <option value="created">Sort: Date created</option>
+      <option value="modified">Sort: Date modified</option>
+    </select>
+  </div>
+
+  <div class="grid" id="grid"></div>
+</div>
+
+<button class="fab" id="fab" aria-label="Add note">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="12" y1="5" x2="12" y2="19"></line>
+    <line x1="5" y1="12" x2="19" y2="12"></line>
+  </svg>
+</button>
+
+<!-- Modal -->
+<div class="overlay" id="overlay">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <h2 id="modalTitle">New note</h2>
+    <div class="field">
+      <label for="fTitle">Title</label>
+      <input id="fTitle" type="text" placeholder="Note title">
+    </div>
+    <div class="field">
+      <label for="fTags">Tags <span style="font-weight:400;text-transform:none;">(comma separated)</span></label>
+      <input id="fTags" type="text" placeholder="e.g. work, ideas">
+    </div>
+    <div class="field">
+      <label for="fText">Note</label>
+      <textarea id="fText" placeholder="Write your note..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="cancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn">Save</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const LS_KEY = "aristiadi_notes_v1";
+  const SEED_KEY = "aristiadi_notes_seeded_v1";
+
+  const state = {
+    notes: [],
+    search: "",
+    tag: null,
+    sort: "created"
+  };
+
+  /* ---------- Storage ---------- */
+  function load(){
+    try{
+      const raw = localStorage.getItem(LS_KEY);
+      state.notes = raw ? JSON.parse(raw) : [];
+    }catch(e){ state.notes = []; }
+  }
+  function save(){
+    localStorage.setItem(LS_KEY, JSON.stringify(state.notes));
+  }
+  function seed(){
+    const now = Date.now();
+    const day = 86400000;
+    return [
+      {
+        id: uid(),
+        title: "Welcome to Note Organizer",
+        tags: ["guide"],
+        text: "Click the black + button to create a new note. Use the search box to find anything, and the tag chips above to filter by category.",
+        created: now - day*3,
+        modified: now - day*3
+      },
+      {
+        id: uid(),
+        title: "Grocery list",
+        tags: ["home", "shopping"],
+        text: "Milk, eggs, coffee beans, avocados, and fresh bread. Don't forget the paper towels either.",
+        created: now - day,
+        modified: now - 3600000
+      },
+      {
+        id: uid(),
+        title: "Idea: reading app",
+        tags: ["work", "ideas"],
+        text: "Build a small app that tracks pages read per day and nudges with a streak. Consider a weekly summary chart.",
+        created: now - 2*3600000,
+        modified: now - 2*3600000
+      }
+    ];
+  }
+  function ensureSeed(){
+    if(!localStorage.getItem(SEED_KEY)){
+      state.notes = seed();
+      save();
+      localStorage.setItem(SEED_KEY, "1");
+    }
+  }
+
+  function uid(){
+    return "n" + Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+  }
+
+  /* ---------- Helpers ---------- */
+  function allTags(){
+    const set = new Set();
+    state.notes.forEach(n => n.tags.forEach(t => set.add(t)));
+    return [...set].sort((a,b)=>a.localeCompare(b));
+  }
+  function fmt(ts){
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined,{year:"numeric",month:"short",day:"numeric"})
+      + " " + d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+  }
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  }
+
+  function filtered(){
+    let list = state.notes.slice();
+    if(state.tag){
+      list = list.filter(n => n.tags.includes(state.tag));
+    }
+    if(state.search){
+      const q = state.search.toLowerCase();
+      list = list.filter(n =>
+        n.title.toLowerCase().includes(q) ||
+        n.text.toLowerCase().includes(q) ||
+        n.tags.some(t => t.toLowerCase().includes(q))
+      );
+    }
+    list.sort((a,b)=>{
+      const k = state.sort;
+      return b[k] - a[k];
+    });
+    return list;
+  }
+
+  /* ---------- Render ---------- */
+  function renderTags(){
+    const el = document.getElementById("tags");
+    el.innerHTML = "";
+    const all = allTags();
+    const chips = [["__all__","All"]].concat(all.map(t=>[t,t]));
+    chips.forEach(([val,label])=>{
+      const b = document.createElement("button");
+      const active = (state.tag===val) || (val==="__all__" && !state.tag);
+      b.className = "chip" + (active ? " active" : "");
+      b.textContent = label;
+      b.onclick = ()=>{ state.tag = (val==="__all__") ? null : val; renderTags(); render(); };
+      el.appendChild(b);
+    });
+  }
+
+  function render(){
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+    const list = filtered();
+    document.getElementById("count").textContent =
+      list.length + (list.length===1 ? " note" : " notes");
+
+    if(list.length===0){
+      const e = document.createElement("div");
+      e.className = "empty";
+      e.textContent = "No notes found.";
+      grid.appendChild(e);
+      return;
+    }
+
+    list.forEach(n=>{
+      const card = document.createElement("div");
+      card.className = "card";
+
+      const title = document.createElement("div");
+      title.className = "title";
+      const t = document.createElement("span");
+      t.textContent = n.title;
+      const del = document.createElement("button");
+      del.className = "del";
+      del.setAttribute("aria-label","Delete note");
+      del.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>';
+      del.onclick = ()=>deleteNote(n.id);
+      title.appendChild(t); title.appendChild(del);
+
+      const text = document.createElement("p");
+      text.className = "text";
+      text.textContent = n.text || "No content.";
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      const tagsRow = document.createElement("div");
+      tagsRow.className = "tags-row";
+      n.tags.forEach(tag=>{
+        const s = document.createElement("span");
+        s.className = "tag";
+        s.textContent = tag;
+        tagsRow.appendChild(s);
+      });
+      const dates = document.createElement("div");
+      dates.className = "dates";
+      dates.textContent = "Created " + fmt(n.created) + " · Modified " + fmt(n.modified);
+      meta.appendChild(tagsRow); meta.appendChild(dates);
+
+      card.appendChild(title);
+      card.appendChild(text);
+      card.appendChild(meta);
+      card.onclick = (ev)=>{ if(ev.target.closest(".del")) return; openModal(n.id); };
+
+      grid.appendChild(card);
+    });
+  }
+
+  /* ---------- CRUD ---------- */
+  function deleteNote(id){
+    if(!confirm("Delete this note?")) return;
+    state.notes = state.notes.filter(n=>n.id!==id);
+    save();
+    if(state.tag && !allTags().includes(state.tag)) state.tag = null;
+    renderTags();
+    render();
+  }
+
+  /* ---------- Modal ---------- */
+  const overlay = document.getElementById("overlay");
+  let editingId = null;
+
+  function openModal(id){
+    editingId = id || null;
+    const n = id ? state.notes.find(x=>x.id===id) : null;
+    document.getElementById("modalTitle").textContent = n ? "Edit note" : "New note";
+    document.getElementById("fTitle").value = n ? n.title : "";
+    document.getElementById("fTags").value = n ? n.tags.join(", ") : "";
+    document.getElementById("fText").value = n ? n.text : "";
+    document.getElementById("saveBtn").textContent = n ? "Save" : "Create";
+    overlay.classList.add("open");
+    setTimeout(()=>document.getElementById("fTitle").focus(),50);
+  }
+  function closeModal(){
+    overlay.classList.remove("open");
+    editingId = null;
+  }
+
+  function saveNote(){
+    const title = document.getElementById("fTitle").value.trim();
+    if(!title){
+      alert("Please add a title.");
+      return;
+    }
+    const tags = document.getElementById("fTags").value
+      .split(",").map(t=>t.trim().toLowerCase()).filter(Boolean);
+    const text = document.getElementById("fText").value.trim();
+    const now = Date.now();
+
+    if(editingId){
+      const n = state.notes.find(x=>x.id===editingId);
+      n.title = title; n.tags = tags; n.text = text; n.modified = now;
+    }else{
+      state.notes.push({ id: uid(), title, tags, text, created: now, modified: now });
+    }
+    save();
+    renderTags();
+    render();
+    closeModal();
+  }
+
+  /* ---------- Events ---------- */
+  document.getElementById("fab").onclick = ()=>openModal(null);
+  document.getElementById("cancelBtn").onclick = closeModal;
+  document.getElementById("saveBtn").onclick = saveNote;
+  overlay.addEventListener("click", e=>{ if(e.target===overlay) closeModal(); });
+  document.addEventListener("keydown", e=>{
+    if(e.key==="Escape" && overlay.classList.contains("open")) closeModal();
+  });
+
+  const searchInput = document.getElementById("search");
+  const searchIcon = document.getElementById("searchIcon");
+  searchInput.addEventListener("input", ()=>{ state.search = searchInput.value; render(); });
+  // Mobile: tapping the magnifier reveals the search field
+  searchIcon.addEventListener("click", ()=>{
+    if(window.matchMedia("(max-width:640px)").matches && searchInput.style.display==="none"){
+      searchInput.style.display = "block";
+      searchInput.style.width = "100%";
+      document.querySelector(".search-wrap").style.justifyContent = "center";
+      searchInput.focus();
+    }
+  });
+
+  document.getElementById("sort").onchange = e=>{ state.sort = e.target.value; render(); };
+
+  /* ---------- Init ---------- */
+  load();
+  ensureSeed();
+  renderTags();
+  render();
+})();
+</script>
+</body>
+</html>
